@@ -1,0 +1,48 @@
+---
+- hosts: identidock
+  become: yes
+  tasks:
+  - name: pip
+    shell: curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && python get-pip.py
+  - name: docker
+    pip: name=docker
+  - name: redis container
+    docker_container:
+      name: redis
+      image: redis:3
+      pull: 1
+      state: started
+      restart_policy: always
+  - name: dnmonster container
+    docker_container:
+      name: dnmonster
+      image: amouat/dnmonster:1.0
+      pull: 1
+      state: started
+      restart_policy: always
+  - name: identidock container
+    docker_container:
+      name: identidock
+      image: amouat/identidock:1.0
+      pull: 1
+      state: started
+      links:
+        - "dnmonster:dnmonster"
+        - "redis:redis"
+      env:
+        ENV: PROD
+      restart_policy: always
+  - name: proxy container
+    docker_container:
+      name: proxy
+      image: amouat/proxy:1.0
+      pull: 1
+      state: started
+      links:
+        - "identidock:identidock"
+      ports:
+        - "80:80"
+      env:
+        NGINX_HOST: www.identidock.com
+        NGINX_PROXY: http://identidock:9090
+      restart_policy: always
